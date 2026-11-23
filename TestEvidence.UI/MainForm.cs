@@ -205,7 +205,12 @@ public sealed class MainForm : Form
     new RevisaoForm(completa, _repo, _config, FormularioDono ?? this).Show();
   }
 
-  private void GerarDocumento() => AbrirRevisao();
+  private void GerarDocumento()
+  {
+    if (Selecionada is not { } s || ControladorSessao.Ativo?.Sessao.Id == s.Id) return;
+    var completa = _repo.Carregar(s.Id) ?? s;
+    GeradorDocumento.Gerar(Dono, completa, _repo, _config);
+  }
 
   private void AbrirDocumento()
   {

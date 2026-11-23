@@ -44,13 +44,18 @@ public sealed class LegendaForm : Form
       ForeColor = SystemColors.GrayText,
       Text = "Enter salva • Shift+Enter quebra linha • Esc salva sem legenda"
     };
-    var descartar = new Button { Text = "Descartar", Dock = DockStyle.Bottom, Height = 28 };
+    var descartar = new Button { Text = "Descartar", Dock = DockStyle.Left, Width = 110 };
     descartar.Click += (_, _) => { Descartado = true; DialogResult = DialogResult.Cancel; };
+    var salvar = new Button { Text = "Salvar", Dock = DockStyle.Right, Width = 110 };
+    salvar.Click += (_, _) => DialogResult = DialogResult.OK;
+    var botoes = new Panel { Dock = DockStyle.Bottom, Height = 30 };
+    botoes.Controls.Add(salvar);
+    botoes.Controls.Add(descartar);
 
     var direita = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 4, 4, 4) };
     direita.Controls.Add(_txtLegenda);
     direita.Controls.Add(dica);
-    direita.Controls.Add(descartar);
+    direita.Controls.Add(botoes);
     direita.Controls.Add(_cboEtapa);
 
     Controls.Add(direita);

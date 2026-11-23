@@ -29,6 +29,9 @@ public sealed class DocumentoWordService
       var body = main.Document.AppendChild(new Body());
 
       CriarEstilos(main);
+      var settings = main.AddNewPart<DocumentSettingsPart>();
+      settings.Settings = new Settings(new UpdateFieldsOnOpen { Val = true });
+      settings.Settings.Save();
       LayoutPadraoDocumento(main, body, sessao, pastaSessao);
       body.AppendChild(CriarSecao(main));
       main.Document.Save();
@@ -46,6 +49,14 @@ public sealed class DocumentoWordService
     body.AppendChild(Paragrafo("EVIDÊNCIA DE TESTE", "Title"));
     body.AppendChild(CriarTabelaCabecalho(sessao));
 
+    var etapasComEvidencia = EtapasEmOrdem(sessao)
+      .Where(et => sessao.Evidencias.Any(e => e.Etapa == et))
+      .ToList();
+    var temObservacoes = !string.IsNullOrWhiteSpace(sessao.Observacoes);
+    var titulos = etapasComEvidencia.Select((et, i) => $"{i + 1}. {et}").ToList();
+    if (temObservacoes) titulos.Add("Observações");
+    if (titulos.Count > 0) AdicionarIndice(body, titulos);
+
     var numero = 0;
     var indiceEtapa = 0;
     foreach (var etapa in EtapasEmOrdem(sessao))
@@ -53,7 +64,7 @@ public sealed class DocumentoWordService
       var itens = sessao.Evidencias.Where(e => e.Etapa == etapa).OrderBy(e => e.Ordem).ToList();
       if (itens.Count == 0) continue;
       indiceEtapa++;
-      body.AppendChild(Paragrafo($"{indiceEtapa}. {etapa}", "Heading1"));
+      body.AppendChild(ParagrafoComMarcador($"{indiceEtapa}. {etapa}", "Heading1", NomeMarcador(indiceEtapa - 1)));
 
       foreach (var ev in itens)
       {
@@ -75,7 +86,7 @@ public sealed class DocumentoWordService
 
     if (!string.IsNullOrWhiteSpace(sessao.Observacoes))
     {
-      body.AppendChild(Paragrafo("Observações", "Heading1"));
+      body.AppendChild(ParagrafoComMarcador("Observações", "Heading1", NomeMarcador(etapasComEvidencia.Count)));
       foreach (var linha in sessao.Observacoes.Replace("\r", "").Split('\n'))
         body.AppendChild(Paragrafo(linha, null));
     }
@@ -206,6 +217,56 @@ public sealed class DocumentoWordService
 
   // ---------- partes comuns ----------
 
+  private static string NomeMarcador(int indice) => $"_Toc{100000 + indice}";
+
+  private static Paragraph ParagrafoComMarcador(string texto, string estilo, string marcador)
+  {
+    var p = Paragrafo(texto, estilo);
+    var id = marcador.GetHashCode() & 0x7FFFFFFF;
+    p.InsertAfter(new BookmarkStart { Id = id.ToString(), Name = marcador }, p.GetFirstChild<ParagraphProperties>());
+    p.AppendChild(new BookmarkEnd { Id = id.ToString() });
+    return p;
+  }
+
+  // Campo TOC real do Word (clicável). As entradas já vêm preenchidas e os números de página
+  // são atualizados pelo Word ao abrir o documento (updateFields).
+  private static void AdicionarIndice(Body body, List<string> titulos)
+  {
+    const string corIndice = "1F3864";
+    body.AppendChild(Paragrafo("Índice", null, negrito: true, tamanhoMeiosPonto: 28, keepNext: true, cor: corIndice));
+
+    Run Fld(FieldCharValues tipo) => new(new FieldChar { FieldCharType = tipo });
+
+    for (var i = 0; i < titulos.Count; i++)
+    {
+      var marcador = NomeMarcador(i);
+      var pPr = new ParagraphProperties(
+        new Tabs(new TabStop { Val = TabStopValues.Right, Leader = TabStopLeaderCharValues.Dot, Position = 9638 }),
+        new SpacingBetweenLines { After = "60" });
+      var p = new Paragraph(pPr);
+
+      if (i == 0)
+      {
+        p.AppendChild(Fld(FieldCharValues.Begin));
+        p.AppendChild(new Run(new FieldCode(" TOC \\o \"1-1\" \\h \\z \\u ") { Space = SpaceProcessingModeValues.Preserve }));
+        p.AppendChild(Fld(FieldCharValues.Separate));
+      }
+
+      p.AppendChild(new Hyperlink(
+        new Run(new Text(titulos[i]) { Space = SpaceProcessingModeValues.Preserve }),
+        new Run(new TabChar()),
+        Fld(FieldCharValues.Begin),
+        new Run(new FieldCode($" PAGEREF {marcador} \\h ") { Space = SpaceProcessingModeValues.Preserve }),
+        Fld(FieldCharValues.Separate),
+        new Run(new Text("1")),
+        Fld(FieldCharValues.End))
+      { Anchor = marcador, History = true });
+
+      if (i == titulos.Count - 1) p.AppendChild(Fld(FieldCharValues.End));
+      body.AppendChild(p);
+    }
+  }
+
   private static Paragraph Paragrafo(string texto, string? estilo, bool negrito = false, int? tamanhoMeiosPonto = null,
     bool keepNext = false, string? cor = null, int espacoApos = 120)
   {
@@ -262,12 +323,11 @@ public sealed class DocumentoWordService
   private static SectionProperties CriarSecao(MainDocumentPart main)
   {
     var footerPart = main.AddNewPart<FooterPart>();
-    var versao = typeof(DocumentoWordService).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
     footerPart.Footer = new Footer(
       new Paragraph(
         new ParagraphProperties(new Justification { Val = JustificationValues.Center }),
         new Run(new RunProperties(new Color { Val = "757575" }, new FontSize { Val = "18" }),
-          new Text($"Gerado por TestEvidence {versao} em {DateTime.Now:dd/MM/yyyy HH:mm} — página ") { Space = SpaceProcessingModeValues.Preserve }),
+          new Text("Página ") { Space = SpaceProcessingModeValues.Preserve }),
         new Run(new RunProperties(new Color { Val = "757575" }, new FontSize { Val = "18" }),
           new FieldChar { FieldCharType = FieldCharValues.Begin }),
         new Run(new RunProperties(new Color { Val = "757575" }, new FontSize { Val = "18" }),

@@ -1,4 +1,4 @@
-using TestEvidence.Models;
+﻿using TestEvidence.Models;
 using TestEvidence.Services;
 using TestEvidence.Services.Nativo;
 
@@ -19,13 +19,16 @@ public sealed class BarraFlutuanteForm : Form
     WrapContents = false,
     Padding = new Padding(4, 6, 4, 4)
   };
-  private readonly Label _lblTarefa = new() { AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Margin = new Padding(4, 7, 8, 0), Cursor = Cursors.SizeAll };
-  private readonly ComboBox _cboEtapa = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 110, Margin = new Padding(0, 2, 6, 0) };
-  private readonly Label _lblContador = new() { AutoSize = true, Margin = new Padding(6, 7, 6, 0) };
-  private readonly Label _lblAviso = new() { AutoSize = true, ForeColor = Color.Firebrick, Margin = new Padding(4, 7, 4, 0), Visible = false };
+  private readonly Label _lblTarefa = new() { AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = Color.White, Margin = new Padding(4, 7, 8, 0), Cursor = Cursors.SizeAll };
+  private readonly ComboBox _cboEtapa = new() { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, Width = 190, BackColor = Color.FromArgb(55, 55, 55), ForeColor = Color.White, Margin = new Padding(0, 3, 6, 0) };
+  private readonly Label _lblContador = new() { AutoSize = true, ForeColor = Color.White, Margin = new Padding(6, 7, 6, 0) };
+  private readonly Label _lblAviso = new() { AutoSize = true, ForeColor = Color.LightSalmon, Margin = new Padding(4, 7, 4, 0), Visible = false };
   private readonly Button _btnPausar = Botao("Pausar");
   private readonly System.Windows.Forms.Timer _timerFlash = new() { Interval = 300 };
-  private readonly Color _corNormal = Color.FromArgb(245, 245, 245);
+  private readonly Color _corNormal = Color.FromArgb(28, 28, 28);
+  private static readonly Color CorBorda = Color.FromArgb(110, 110, 110);
+  private const double OpacidadeNormal = 0.92;
+  private const double OpacidadePausada = 0.5;
   private bool _fechandoDefinitivo;
   private bool _atualizandoEtapas;
 
@@ -39,6 +42,7 @@ public sealed class BarraFlutuanteForm : Form
     ShowInTaskbar = true;
     StartPosition = FormStartPosition.Manual;
     BackColor = _corNormal;
+    Opacity = OpacidadeNormal;
     Height = 44;
     Width = 560;
     Icon = IconeApp.Obter();
@@ -80,8 +84,18 @@ public sealed class BarraFlutuanteForm : Form
     AutoSize = true,
     Height = 28,
     Margin = new Padding(2, 2, 2, 0),
-    FlatStyle = FlatStyle.System
+    FlatStyle = FlatStyle.Flat,
+    BackColor = Color.FromArgb(55, 55, 55),
+    ForeColor = Color.White,
+    FlatAppearance = { BorderColor = Color.FromArgb(120, 120, 120), BorderSize = 1 }
   };
+
+  protected override void OnPaint(PaintEventArgs e)
+  {
+    base.OnPaint(e);
+    using var caneta = new Pen(CorBorda);
+    e.Graphics.DrawRectangle(caneta, 0, 0, Width - 1, Height - 1);
+  }
 
   private void DefinirPosicaoInicial()
   {
@@ -188,14 +202,14 @@ public sealed class BarraFlutuanteForm : Form
     {
       _ctl.Retomar();
       RegistrarAtalhos();
-      Opacity = 1;
+      Opacity = OpacidadeNormal;
       _btnPausar.Text = "Pausar";
     }
     else
     {
       _ctl.Pausar();
       _atalhos.DesregistrarTodos();
-      Opacity = 0.5;
+      Opacity = OpacidadePausada;
       _btnPausar.Text = "Retomar";
     }
     AjustarLargura();
@@ -203,11 +217,11 @@ public sealed class BarraFlutuanteForm : Form
 
   public void EsconderParaCaptura() => Opacity = 0;
 
-  public void MostrarAposCaptura() => Opacity = _ctl.Pausada ? 0.5 : 1;
+  public void MostrarAposCaptura() => Opacity = _ctl.Pausada ? OpacidadePausada : OpacidadeNormal;
 
   public void Flash()
   {
-    BackColor = Color.LightGreen;
+    BackColor = Color.FromArgb(30, 100, 55);
     _timerFlash.Stop();
     _timerFlash.Start();
   }

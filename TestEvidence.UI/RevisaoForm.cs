@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using TestEvidence.Models;
 using TestEvidence.Services;
 
@@ -282,45 +282,6 @@ public sealed class RevisaoForm : Form
   private void GerarDocumento()
   {
     if (!SalvarTudo()) return;
-    if (_sessao.Evidencias.Count == 0 &&
-        MessageBox.Show(this, "A sessão não tem evidências. Gerar o documento mesmo assim?", Text,
-          MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-
-    var pasta = _config.PastaSaidaEfetiva;
-    try { Directory.CreateDirectory(pasta); }
-    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { pasta = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); }
-
-    var nomeTarefa = string.Concat(_sessao.Tarefa.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
-    using var dlg = new SaveFileDialog
-    {
-      Filter = "Documento Word (*.docx)|*.docx",
-      InitialDirectory = pasta,
-      FileName = $"Evidencia_{nomeTarefa}_{DateTime.Now:yyyyMMdd}.docx"
-    };
-    if (dlg.ShowDialog(this) != DialogResult.OK) return;
-
-    try
-    {
-      Cursor = Cursors.WaitCursor;
-      new DocumentoWordService().Gerar(_sessao, _repo.PastaDa(_sessao), dlg.FileName);
-    }
-    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-    {
-      MessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-      return;
-    }
-    finally
-    {
-      Cursor = Cursors.Default;
-    }
-
-    _sessao.Status = StatusSessao.Finalizada;
-    _sessao.Fim = DateTime.Now;
-    _sessao.UltimoDocumentoGerado = dlg.FileName;
-    SalvarTudo();
-    ControladorSessao.NotificarEstado();
-
-    if (MessageBox.Show(this, "Documento gerado. Abrir o documento?", Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-      AbrirArquivo(dlg.FileName);
+    GeradorDocumento.Gerar(this, _sessao, _repo, _config);
   }
 }
